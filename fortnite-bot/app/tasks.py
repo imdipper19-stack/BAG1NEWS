@@ -507,7 +507,6 @@ async def _wednesday_official_async() -> dict:
 
 
 @celery_app.task(name="app.tasks.sunday_deals")
-
 def sunday_deals() -> dict:
     """Sunday post: 'What's worth buying today'.
 
@@ -521,10 +520,8 @@ async def _sunday_deals_async() -> dict:
     if await is_emergency_stopped():
         return {"skipped": "emergency_stop"}
     from app.services.digest import build_shop_digest
-    # Uses the digest builder but with a Sunday-specific topic via
- the
-    # underlying generator. For now we reuse the daily digest with a
-    # smaller count.
+    # Uses the digest builder but with a Sunday-specific topic; for now
+    # we reuse the daily digest with a smaller item count.
     summary = await build_shop_digest(dry_run=False, top_n=3)
     post_id = summary.get("post_id")
     if post_id:
