@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     # Master switch — when True, every post is sent to the admin for
     # approve/reject before being published to the channel.
     require_admin_approval: bool = True
+    # Optional HTTP/HTTPS proxy for the Telegram Bot API.
+    # Use when the VPS region blocks Telegram (e.g. RU). Format:
+    #   http://user:pass@host:port  or  http://host:port
+    telegram_proxy_url: str = ""
 
     # LLM
     llm_api_url: str = "https://api.wellflow.dev"
