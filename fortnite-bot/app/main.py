@@ -25,12 +25,27 @@ _bot_task: asyncio.Task | None = None
 async def _start_bot_polling() -> None:
     bot = get_bot()
     dp = get_dispatcher()
+    # Verify the proxy + token before entering the polling loop. Failures
+    # here surface immediately in the logs instead of silently hanging.
     try:
-        await dp.start_polling(bot, handle_signals=False)
+        me = await bot.get_me()
+        logger.info(
+            "Bot authenticated as @%s (id=%s) — starting polling",
+            me.username, me.id,
+        )
+    except Exception as e:
+        logger.exception("Bot getMe failed: %s", e)
+
+    try:
+        # polling_timeout=10 keeps each long-poll request short, which is
+        # essential when traffic goes through an HTTP proxy that may close
+        # idle connections after ~30s. Without it aiogram defaults to 30
+        # and the proxy silently drops the response.
+        await dp.start_polling(bot, handle_signals=False, polling_timeout=10)
     except asyncio.CancelledError:
         pass
     except Exception as e:
-        logger.error("Bot polling crashed: %s", e)
+        logger.exception("Bot polling crashed: %s", e)
 
 
 @asynccontextmanager
