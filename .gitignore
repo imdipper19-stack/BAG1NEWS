@@ -1,0 +1,52 @@
+# Secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Generated images (mounted as volume in docker-compose)
+fortnite-bot/images/*
+!fortnite-bot/images/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Kiro spec workspace (local planning artefacts, not part of the runtime)
+.kiro/
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Docker
+*.tar
+*.tar.gz
+
+# Logs / dumps
+*.log
+*.sql
+backup-*.sql
+
+# Playwright cache (it's installed inside the docker image, not the repo)
+ms-playwright/

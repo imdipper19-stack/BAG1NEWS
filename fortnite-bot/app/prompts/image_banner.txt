@@ -1,0 +1,29 @@
+Premium Fortnite-news magazine cover. Official AAA-game-marketing aesthetic. The image MUST follow this exact layout — treat it as a strict design brief.
+
+Subject: {topic}
+Russian headline (Cyrillic, must be spelled exactly like this and rendered crisply, NO typos): "{headline}"
+Style hint: {style}
+
+EXACT LAYOUT (always reproduce this composition):
+1. Top-left corner: a small bold pill that says "FORTNITE | НОВОСТИ" or "МАГАЗИН FORTNITE" depending on the topic — thin uppercase sans-serif, white text on subtle dark pill, never larger than 6% of frame height.
+2. Left half (40-50% of width): a HUGE multi-line Russian headline, bold uppercase, modern condensed sans-serif, with strong color highlight on the most important word (cyan/yellow/violet depending on style). The headline takes ~50% of the canvas vertical space. Add a thin one-line subtitle right below in a small pill ("УЖЕ В ИГРЕ!", "НЕ ПРОПУСТИ!", "ЧТО НОВОГО?", "УЖЕ ДОСТУПНО!").
+3. Right half: a single hero character (full body or 3/4) in dramatic pose, dynamic lighting, glowing rim-light, cinematic AAA-render quality, sharp focus. The character must look like an authentic Fortnite outfit — cel-shaded but realistic, expressive face, modern apparel.
+4. Bottom strip (~18% of frame height): an "infographic chips" row containing 3 small rounded cards with cosmetic icons or feature icons (skin portrait, weapon/pickaxe, glider/back-bling, V-Bucks coins, location pin). Each card has a tiny uppercase Russian caption underneath ("НОВЫЕ СКИНЫ", "ЭМОЦИИ", "В-БАКСЫ", "НОВАЯ ЛОКАЦИЯ", "НОВОЕ ОРУЖИЕ"). Cards are dark, glassy, neon-edged. Optionally include a price/quantity number on one of the cards (e.g. "1500", "2000").
+5. The whole image has a thin diagonal energy-shard / crystal motif in the background corners (cobalt-blue, cyan or violet shards depending on style).
+
+PER-STYLE COLOR PALETTE (pick by style hint):
+- "leak"   → background: deep navy-to-cobalt gradient, ice/crystal shards, cyan rim-light on character, white headline with cyan accent word, "GORYACHAYA UTECHKA" or "УЖЕ В ИГРЕ!" sub-pill;
+- "season" → background: warm violet-magenta-gold gradient, big season number floating, glowing particles, yellow accent word, sub-pill "ЧТО НОВОГО?";
+- "shop"   → background: violet-to-cyan showroom gradient, light rays from behind, magenta accent word, sub-pill "НЕ ПРОПУСТИ!" or "ТОЛЬКО СЕГОДНЯ!" — bottom chips MUST show a couple of cosmetic items + a V-Bucks coin stack with price label;
+- "news"   → background: navy-blue gradient with thin tech-grid, yellow accent word on headline, sub-pill "УЖЕ ДОСТУПНО!".
+
+QUALITY BAR:
+- magazine-cover sharp, 1K resolution, 16:9 landscape;
+- text rendering must be perfectly legible at thumbnail size;
+- composition feels like an official Fortnite news/blog hero banner.
+
+HARD RULES:
+- do NOT include a literal "Fortnite" or "Epic Games" logo — the small "FORTNITE | НОВОСТИ" pill in the top-left is just a text badge, not the official logo;
+- no other brand logos, no real-world celebrities;
+- characters must look like generic original Fortnite-style outfits, never copy a specific real-life person;
+- Russian must be spelled correctly (no Cyrillic-Latin mixups, no missing letters).

@@ -1,0 +1,69 @@
+# Production compose override.
+# Tuned for a 2 GB RAM / 1 CPU VPS.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+services:
+  postgres:
+    # Postgres tuned for ~200 MB RAM ceiling
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_connections=30
+      - -c
+      - wal_buffers=4MB
+    deploy:
+      resources:
+        limits:
+          memory: 350M
+    restart: unless-stopped
+
+  redis:
+    command:
+      - redis-server
+      - --maxmemory
+      - 96mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - ""
+      - --appendonly
+      - "no"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    restart: unless-stopped
+
+  app:
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+    restart: unless-stopped
+    # Single uvicorn worker is enough for the admin DM + /health endpoint
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+
+  worker:
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+    restart: unless-stopped
+    # Single concurrency keeps memory predictable when Playwright spawns Chromium
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=1 --max-tasks-per-child=20
+
+  beat:
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+    restart: unless-stopped
