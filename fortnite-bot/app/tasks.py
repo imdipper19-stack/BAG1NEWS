@@ -49,12 +49,23 @@ def _run_async(coro: Awaitable):
 
 
 async def _persist_items(items: list[RawItem]) -> int:
-    """Insert raw items into the DB. Returns count actually inserted."""
+    """Insert raw items into the DB. Returns count actually inserted.
+
+    All ``published_at`` values are stripped of tzinfo before insert —
+    Postgres column type is TIMESTAMP WITHOUT TIME ZONE and asyncpg
+    refuses to mix tz-aware and tz-naive values.
+    """
     inserted = 0
     if not items:
         return 0
     async with get_session() as session:
         for item in items:
+            published_at = item.published_at
+            if published_at is not None and published_at.tzinfo is not None:
+                # Convert to UTC then drop tzinfo (column is TIMESTAMP WITHOUT TZ)
+                from datetime import timezone as _tz
+                published_at = published_at.astimezone(_tz.utc).replace(tzinfo=None)
+
             row = RawItemORM(
                 title=item.title,
                 url=item.url,
@@ -63,7 +74,7 @@ async def _persist_items(items: list[RawItem]) -> int:
                 category=item.category,
                 is_official=item.is_official,
                 is_leak=item.is_leak,
-                published_at=item.published_at,
+                published_at=published_at,
             )
             session.add(row)
             try:
