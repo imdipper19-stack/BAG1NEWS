@@ -5,8 +5,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-# Official Fortnite YouTube channel ID
-FORTNITE_CHANNEL_ID = "UCkgU7AlFGnxFMi4JrGHoFoA"
+# Official Fortnite YouTube channel ID (verified from youtube.com/@Fortnite)
+FORTNITE_CHANNEL_ID = "UCwJ3jufubi5oQRu6aY9vFWw"
 RSS_URL = f"https://www.youtube.com/feeds/videos.xml?channel_id={FORTNITE_CHANNEL_ID}"
 
 # Limit how many of the most-recent videos we return
