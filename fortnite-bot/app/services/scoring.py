@@ -201,15 +201,27 @@ def score_item(item: RawItem) -> dict:
     }
 
 
-def should_publish(score: int) -> str:
+def should_publish(score: int, min_score: int | None = None) -> str:
     """Decide publication action based on score.
 
     Returns one of: "immediate", "conditional", "digest", "skip".
+
+    The thresholds anchor on ``min_score`` (the runtime-configurable
+    minimum score to publish, defaults to 70). A post is:
+      * "immediate"   if score >= min_score + 15  (very strong signal)
+      * "conditional" if score >= min_score       (publish, queue for review)
+      * "digest"      if score >= min_score - 20  (aggregate later)
+      * "skip"        otherwise
+
+    Lowering ``min_score`` (e.g. via ``/score 50``) automatically lowers
+    the immediate/digest cutoffs in step.
     """
-    if score >= 85:
+    if min_score is None:
+        min_score = 70
+    if score >= min_score + 15:
         return "immediate"
-    if score >= 70:
+    if score >= min_score:
         return "conditional"
-    if score >= 50:
+    if score >= max(0, min_score - 20):
         return "digest"
     return "skip"

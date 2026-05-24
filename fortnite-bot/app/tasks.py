@@ -244,7 +244,9 @@ async def _process_queue_async() -> int:
 
         verified = verify_item(item)
         score_dict = score_item(verified)
-        decision = should_publish(score_dict["total"])
+        from app.services.runtime_settings import get_min_score_to_publish
+        min_score = await get_min_score_to_publish()
+        decision = should_publish(score_dict["total"], min_score=min_score)
 
         # Persist a Post row regardless (for traceability)
         async with get_session() as session:
@@ -264,8 +266,6 @@ async def _process_queue_async() -> int:
         if decision not in ("immediate", "conditional"):
             continue
 
-        from app.services.runtime_settings import get_min_score_to_publish
-        min_score = await get_min_score_to_publish()
         if score_dict["total"] < min_score:
             continue
 
