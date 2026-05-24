@@ -85,7 +85,7 @@ def rewrite_body(body: str) -> str:
 
 
 def build_keyboard() -> InlineKeyboardMarkup:
-    btn = InlineKeyboardButton(text="🛒 Магазин для игроков", url=NEW_URL)
+    btn = InlineKeyboardButton(text="🛒 Перейти в магазин", url=NEW_URL)
     return InlineKeyboardMarkup(inline_keyboard=[[btn]])
 
 

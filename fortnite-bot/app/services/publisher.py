@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def _build_cta_keyboard() -> InlineKeyboardMarkup:
     """Build the inline keyboard with the V-Bucks CTA button."""
     button = InlineKeyboardButton(
-        text="🛒 Магазин для игроков",
+        text="🛒 Перейти в магазин",
         url=settings.shop_url,
     )
     return InlineKeyboardMarkup(inline_keyboard=[[button]])
