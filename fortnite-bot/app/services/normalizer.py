@@ -51,6 +51,32 @@ _PAST_COLLABS = (
     "halo",                 # released
     "predator",             # released
     "alien xenomorph",      # released
+    # 2024-2025 batch
+    "crimson desert",       # collab released
+    "family guy",           # released as part of Disney/Fox jam
+    "lois griffin",         # Family Guy character
+    "peter griffin",        # Family Guy character
+    "stewie griffin",       # Family Guy character
+    "bob's burgers",        # released
+    "linda belcher",        # Bob's Burgers
+    "king of the hill",     # released
+    "peggy hill",           # King of the Hill
+    "hank hill",            # King of the Hill
+    "jason voorhees",       # Friday the 13th Fortnitemares — annual rerun
+    "friday the 13th",      # annual Halloween rerun
+    "fortnitemares",        # annual event — not "future" news
+    # Rocket League / Rocket Racing legacy cars (collected as "skins")
+    "fennec",               # RL car — already in game
+    "dominus",              # RL car — already in game
+    "the sentinel",         # RL car — already in game
+    "octane",               # RL car — already in game
+    # Other legacy
+    "shatter spawn",        # passed seasonal mini-event (May 2024)
+    "golden scythe",        # earned via Shatter Spawn — past
+    "golden katana",        # earned via Shatter Spawn — past
+    "golden",               # broad — covers any "Golden X" reward post
+    "indigo kuno",          # released cosmetic, not future news
+    "pie patron",            # released
 )
 
 

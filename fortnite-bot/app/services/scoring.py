@@ -80,23 +80,33 @@ def is_boring(item: RawItem) -> bool:
 
 
 def _score_relevance(item: RawItem) -> int:
-    """0-25: how related the item is to Fortnite skins/season/V-Bucks."""
+    """0-25: how related the item is to Fortnite skins/season/V-Bucks.
+
+    Leak-tweets are usually short (5-15 words) so naive keyword counting
+    underrates them. We give a category-based base so a clearly Fortnite
+    leak/cosmetic item starts at a respectable floor and keyword
+    matches stack on top of that.
+    """
     text = (item.title + " " + item.content).lower()
     matches = 0
     for kw in HIGH_PRIORITY_KEYWORDS_EN + HIGH_PRIORITY_KEYWORDS_RU:
         if kw.lower() in text:
             matches += 1
-    # Source already says it's a Fortnite leak / cosmetic — give a base
-    # bonus so short-tweet leaks aren't punished for missing keywords.
-    if item.is_leak or "fortnite" in (item.source or "").lower() or item.category in (
-        "skin_leak", "official_news", "item_shop", "upcoming_skin", "leak_discussion",
-    ):
-        matches += 2
-    if matches == 0:
-        return 8
-    if matches >= 5:
-        return 25
-    return 8 + matches * 4
+
+    # Category-based base score: a confirmed leak/skin item starts at 14.
+    if item.category in ("skin_leak", "upcoming_skin"):
+        base = 14
+    elif item.category in ("leak_discussion", "official_news"):
+        base = 12
+    elif item.category in ("item_shop", "next_season"):
+        base = 12
+    elif item.is_leak or "fortnite" in (item.source or "").lower():
+        base = 10
+    else:
+        base = 6
+
+    score = base + matches * 3
+    return min(score, 25)
 
 
 def _score_freshness(item: RawItem) -> int:
@@ -122,14 +132,19 @@ def _score_freshness(item: RawItem) -> int:
 
 
 def _score_source_trust(item: RawItem) -> int:
-    """0-20: trust level based on source_level (1=official … 4=trend)."""
-    return {1: 20, 2: 16, 3: 12, 4: 6}.get(item.source_level, 5)
+    """0-20: trust level based on source_level (1=official … 4=trend).
+
+    Bumped Level 3 (X/Reddit leakers) from 12 to 15 — for our channel
+    these are the *primary* signal, not a secondary one. Quality of
+    the leak signal is filtered upstream by the past-collab blacklist.
+    """
+    return {1: 20, 2: 17, 3: 15, 4: 8}.get(item.source_level, 6)
 
 
 def _score_audience_interest(item: RawItem) -> int:
     """0-25: estimated audience interest (views/discussion potential)."""
     text = (item.title + " " + item.content).lower()
-    score = 12
+    score = 14
     high_interest_topics = [
         # Sezon / battle pass
         "season", "сезон", "chapter", "глава",
@@ -157,6 +172,10 @@ def _score_audience_interest(item: RawItem) -> int:
     src = (item.source or "").lower()
     if any(name in src for name in ("hypex", "shiinabr", "firemonkey")):
         score += 6
+    # Leak/upcoming items deserve a baseline boost — they're inherently
+    # the most clickable content for our audience.
+    if item.category in ("skin_leak", "upcoming_skin", "leak_discussion"):
+        score += 3
     return min(score, 25)
 
 
