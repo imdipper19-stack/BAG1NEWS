@@ -86,11 +86,17 @@ def _score_relevance(item: RawItem) -> int:
     for kw in HIGH_PRIORITY_KEYWORDS_EN + HIGH_PRIORITY_KEYWORDS_RU:
         if kw.lower() in text:
             matches += 1
+    # Source already says it's a Fortnite leak / cosmetic — give a base
+    # bonus so short-tweet leaks aren't punished for missing keywords.
+    if item.is_leak or "fortnite" in (item.source or "").lower() or item.category in (
+        "skin_leak", "official_news", "item_shop", "upcoming_skin", "leak_discussion",
+    ):
+        matches += 2
     if matches == 0:
-        return 5
+        return 8
     if matches >= 5:
         return 25
-    return 5 + matches * 4
+    return 8 + matches * 4
 
 
 def _score_freshness(item: RawItem) -> int:
@@ -123,23 +129,34 @@ def _score_source_trust(item: RawItem) -> int:
 def _score_audience_interest(item: RawItem) -> int:
     """0-25: estimated audience interest (views/discussion potential)."""
     text = (item.title + " " + item.content).lower()
-    score = 10
+    score = 12
     high_interest_topics = [
-        "season",
-        "сезон",
-        "battle pass",
-        "боевой пропуск",
-        "collab",
-        "коллаборация",
-        "marvel",
-        "star wars",
-        "anime",
-        "live event",
-        "live-event",
+        # Sezon / battle pass
+        "season", "сезон", "chapter", "глава",
+        "battle pass", "боевой пропуск",
+        # Collabs (umbrella + frequent IPs)
+        "collab", "коллаборация",
+        "marvel", "dc", "star wars", "anime", "lego",
+        "batman", "spider", "superman", "naruto",
+        "disney", "pixar", "harry potter",
+        # Live events / specials
+        "live event", "live-event", "ивент", "event",
+        "showdown", "tournament", "cup", "final",
+        # Skin / cosmetic specifics
+        "leaked", "leak", "утечка", "новый скин", "new skin",
+        "first look", "exclusive",
+        # POI / map
+        "poi", "map", "карта", "location", "локация",
+        # Free stuff
+        "free", "бесплатно", "drop",
     ]
     for kw in high_interest_topics:
         if kw in text:
-            score += 4
+            score += 3
+    # Trusted leakers carry inherent interest
+    src = (item.source or "").lower()
+    if any(name in src for name in ("hypex", "shiinabr", "firemonkey")):
+        score += 6
     return min(score, 25)
 
 
