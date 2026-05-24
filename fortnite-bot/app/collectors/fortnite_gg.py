@@ -201,12 +201,47 @@ def _parse_class_item_cards(soup: BeautifulSoup, category: str, fetched_at: str)
                     href = inner_a["href"]
             if not href:
                 continue
+            # Whitelist: only real cosmetic pages. Footer links like
+            # /contact, /about, /privacy, /terms must be rejected here
+            # — without this guard they slip in as "Privacy / Terms" cards.
+            if not _is_cosmetic_url(href):
+                continue
             item = _build_item_from_card(tag, href, category, fetched_at)
             if item:
                 items.append(item)
         if items:
             break
     return items
+
+
+# Hard whitelist of cosmetic URL shapes. Anything else (footer, nav,
+# blog, profile pages) is dropped before it reaches the normalizer.
+_COSMETIC_URL_RE = re.compile(
+    r"/cosmetics?(?:\?|/|$)", re.IGNORECASE
+)
+# Filenames / paths that are obviously not a cosmetic page
+_NON_COSMETIC_PATHS = (
+    "/contact", "/about", "/privacy", "/terms", "/cookies", "/login",
+    "/signup", "/register", "/profile", "/account", "/blog", "/news",
+    "/discord", "/twitter", "/youtube", "/faq", "/help", "/support",
+    "/legal", "/dmca", "/sitemap", "/api/", "/feed",
+)
+
+
+def _is_cosmetic_url(href: str) -> bool:
+    """Return True only for hrefs pointing at a real cosmetic page."""
+    if not href:
+        return False
+    h = href.lower().strip()
+    # Direct match: /cosmetics?id=123 or /cosmetic/foo
+    if _COSMETIC_URL_RE.search(h):
+        return True
+    # Reject anything in the non-cosmetic blacklist
+    for bad in _NON_COSMETIC_PATHS:
+        if bad in h:
+            return False
+    # Anything else without a cosmetic marker — reject by default.
+    return False
 
 
 def _build_item_from_card(

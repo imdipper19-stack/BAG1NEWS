@@ -234,6 +234,18 @@ def normalize_fortnite_gg(item: dict) -> RawItem | None:
     url = item.get("url", "")
     if not title or not url:
         return None
+    # Reject obvious site-chrome links (footer, nav) that may slip past
+    # the scraper's URL whitelist. Real cosmetic titles are 3+ words or
+    # contain at least one digit/uppercase letter sequence; one-word
+    # generic titles like "Contact" / "Privacy" are nav links.
+    _NAV_TITLES = {
+        "contact", "about", "privacy", "terms", "cookies", "login",
+        "signup", "register", "profile", "account", "blog", "news",
+        "discord", "faq", "help", "support", "legal", "dmca", "home",
+        "shop", "leaks", "stats", "search", "menu",
+    }
+    if title.strip().lower() in _NAV_TITLES:
+        return None
     category = item.get("category", "leaks")
     content = clean_content(item.get("content", ""))
     if _is_past_collab(title, content):
