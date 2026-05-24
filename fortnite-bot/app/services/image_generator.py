@@ -114,11 +114,14 @@ class ImageGenerator:
         style: str = "news",
         has_reference: bool = False,
     ) -> str:
+        # Strip leaker handles (via @ShiinaBR, by HYPEX, etc.) — they would
+        # otherwise show up rendered on the banner.
+        from app.services.title_cleaner import clean_title as _clean_attrib
+        topic = _clean_attrib(topic)
+        headline = _clean_attrib(headline)
+
         # Strip third-party brand names (Marvel, Star Wars, Disney, …) that
         # trip Google/OpenAI safety filters. "Fortnite" / "Epic Games" stay.
-        # Both topic (scene description) and headline (text rendered on the
-        # banner) are sanitized so the safety check passes; the published
-        # Telegram caption remains untouched.
         clean_topic = _strip_third_party_brands(topic)
         clean_headline = _strip_third_party_brands(headline)
         template = self._load_prompt_template()

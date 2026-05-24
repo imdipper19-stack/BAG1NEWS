@@ -208,14 +208,25 @@ async def _process_queue_async() -> int:
         logger.info("Daily post limit reached — skipping process_queue")
         return 0
 
-    # Fetch up to 30 candidate items: those without an associated post
+    # Fetch up to 5 candidate items per cycle (rate-limit Replicate spend).
+    # Only "future-facing" categories — leaks, upcoming skins, official news.
+    # Shop / cosmetics-database items go through the daily digest instead,
+    # not as individual posts.
+    INTERESTING_CATEGORIES = (
+        "skin_leak",
+        "upcoming_skin",
+        "leak_discussion",
+        "official_news",
+        "next_season",
+    )
     async with get_session() as session:
         stmt = (
             select(RawItemORM)
             .outerjoin(PostORM, PostORM.raw_item_id == RawItemORM.id)
             .where(PostORM.id.is_(None))
+            .where(RawItemORM.category.in_(INTERESTING_CATEGORIES))
             .order_by(RawItemORM.id.desc())
-            .limit(30)
+            .limit(5)
         )
         result = await session.execute(stmt)
         rows: list[RawItemORM] = list(result.scalars())

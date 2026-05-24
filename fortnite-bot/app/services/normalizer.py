@@ -7,14 +7,57 @@ Source-level rules from the spec:
     Level 2 (API/database): fortnite-api.com, fortnite.gg
     Level 3 (leak/datamine): X (HYPEX/ShiinaBR/FireMonkey), Reddit r/FortniteLeaks
     Level 4 (trend): not implemented yet
+
+This step also strips leaker attribution from titles/content (we
+position the channel as a primary insider) and filters out
+already-released collabs that are no longer relevant news.
 """
 
 from datetime import datetime
 from typing import Optional
-from app.schemas import RawItem
 import logging
 
+from app.schemas import RawItem
+from app.services.title_cleaner import clean_content, clean_title
+
 logger = logging.getLogger(__name__)
+
+
+# Past collaborations / events that already happened — bot should not
+# repackage them as "future news". Lowercase substrings, matched in
+# title+content. Keep ordered by recency (newest first) so it's easy
+# to extend.
+_PAST_COLLABS = (
+    "overwatch",            # 2024 collab — already happened
+    "destiny 2",            # 2024
+    "doctor who",           # 2024
+    "doctor strange",       # 2024
+    "wednesday",            # 2024
+    "fall guys",            # multiple, already done
+    "rocket league",        # crossover already done
+    "metallica",            # 2024 jam track collab released
+    "lady gaga festival",   # released
+    "billie eilish festival",  # released
+    "snoop dogg",           # released
+    "tmnt",                 # already done
+    "teenage mutant ninja turtles",
+    "x-men 97",             # released
+    "avatar",               # already done
+    "the last airbender",   # already done
+    "pirates of the caribbean",  # released
+    "dragon ball",          # most arcs released
+    "naruto",               # most arcs released
+    "rick and morty",       # released
+    "halo",                 # released
+    "predator",             # released
+    "alien xenomorph",      # released
+)
+
+
+def _is_past_collab(title: str, content: str) -> bool:
+    """Return True if the item references an already-released collab."""
+    text = f"{title or ''} {content or ''}".lower()
+    return any(needle in text for needle in _PAST_COLLABS)
 
 
 def _parse_dt(value: str | None) -> Optional[datetime]:
@@ -22,7 +65,6 @@ def _parse_dt(value: str | None) -> Optional[datetime]:
     if not value:
         return None
     try:
-        # Handle "Z" suffix
         if value.endswith("Z"):
             value = value[:-1] + "+00:00"
         return datetime.fromisoformat(value)
@@ -31,13 +73,11 @@ def _parse_dt(value: str | None) -> Optional[datetime]:
 
 
 def normalize_fortnite_api(item: dict) -> RawItem | None:
-    """Normalize fortnite-api.com items (shop, news, new cosmetics)."""
     source = item.get("_source", "fortnite-api")
-    name = item.get("name") or item.get("title") or ""
+    name = clean_title(item.get("name") or item.get("title") or "")
     if not name:
         return None
 
-    # Determine category
     if "shop" in source:
         category = "item_shop"
     elif "news" in source:
@@ -47,7 +87,6 @@ def normalize_fortnite_api(item: dict) -> RawItem | None:
     else:
         category = "general"
 
-    # Build a stable URL (since fortnite-api items don't have direct URLs)
     item_id = item.get("id", "")
     url = item.get("url") or f"https://fortnite-api.com/items/{name.replace(' ', '-')}"
 
@@ -58,32 +97,38 @@ def normalize_fortnite_api(item: dict) -> RawItem | None:
     elif isinstance(images, str):
         image_url = images
 
+    content = clean_content(item.get("description") or item.get("body") or "")
+    if _is_past_collab(name, content):
+        return None
+
     return RawItem(
         source=source,
         source_level=2,
         title=name,
         url=url,
-        content=item.get("description") or item.get("body") or "",
+        content=content,
         image_url=image_url,
         category=category,
         published_at=_parse_dt(item.get("_fetched_at")),
-        is_official=False,  # data-based, not officially announced
+        is_official=False,
         is_leak=False,
     )
 
 
 def normalize_fortnite_news(item: dict) -> RawItem | None:
-    """Normalize fortnite.com/news items."""
-    title = item.get("title", "")
+    title = clean_title(item.get("title", ""))
     url = item.get("url", "")
     if not title or not url:
+        return None
+    content = clean_content(item.get("content", ""))
+    if _is_past_collab(title, content):
         return None
     return RawItem(
         source=item.get("_source", "fortnite.com/news"),
         source_level=1,
         title=title,
         url=url,
-        content=item.get("content", ""),
+        content=content,
         image_url=item.get("image_url", ""),
         category="official_news",
         published_at=_parse_dt(item.get("published_at")) or _parse_dt(item.get("_fetched_at")),
@@ -93,17 +138,19 @@ def normalize_fortnite_news(item: dict) -> RawItem | None:
 
 
 def normalize_youtube(item: dict) -> RawItem | None:
-    """Normalize YouTube RSS items."""
-    title = item.get("title", "")
+    title = clean_title(item.get("title", ""))
     url = item.get("url", "")
     if not title or not url:
+        return None
+    content = clean_content(item.get("content", ""))
+    if _is_past_collab(title, content):
         return None
     return RawItem(
         source=item.get("_source", "youtube/fortnite"),
         source_level=1,
         title=title,
         url=url,
-        content=item.get("content", ""),
+        content=content,
         image_url=item.get("image_url", ""),
         category="official_news",
         published_at=_parse_dt(item.get("published_at")),
@@ -113,17 +160,19 @@ def normalize_youtube(item: dict) -> RawItem | None:
 
 
 def normalize_leak_x(item: dict) -> RawItem | None:
-    """Normalize X/Twitter leak items (HYPEX, ShiinaBR, FireMonkey)."""
-    title = item.get("title", "")
+    title = clean_title(item.get("title", ""))
     url = item.get("url", "")
     if not title or not url:
+        return None
+    content = clean_content(item.get("content", ""))
+    if _is_past_collab(title, content):
         return None
     return RawItem(
         source=item.get("_source", "x.com"),
         source_level=3,
         title=title,
         url=url,
-        content=item.get("content", ""),
+        content=content,
         image_url=item.get("image_url", ""),
         category="skin_leak",
         published_at=_parse_dt(item.get("published_at")),
@@ -133,17 +182,19 @@ def normalize_leak_x(item: dict) -> RawItem | None:
 
 
 def normalize_reddit(item: dict) -> RawItem | None:
-    """Normalize Reddit r/FortniteLeaks items."""
-    title = item.get("title", "")
+    title = clean_title(item.get("title", ""))
     url = item.get("url", "")
     if not title or not url:
+        return None
+    content = clean_content(item.get("content", ""))
+    if _is_past_collab(title, content):
         return None
     return RawItem(
         source=item.get("_source", "reddit/FortniteLeaks"),
         source_level=3,
         title=title,
         url=url,
-        content=item.get("content", ""),
+        content=content,
         image_url=item.get("image_url", ""),
         category="leak_discussion",
         published_at=_parse_dt(item.get("published_at")),
@@ -153,29 +204,29 @@ def normalize_reddit(item: dict) -> RawItem | None:
 
 
 def normalize_fortnite_gg(item: dict) -> RawItem | None:
-    """Normalize fortnite.gg items."""
-    title = item.get("title", "")
+    title = clean_title(item.get("title", ""))
     url = item.get("url", "")
     if not title or not url:
         return None
     category = item.get("category", "leaks")
+    content = clean_content(item.get("content", ""))
+    if _is_past_collab(title, content):
+        return None
     return RawItem(
         source=item.get("_source", "fortnite.gg"),
         source_level=2,
         title=title,
         url=url,
-        content=item.get("content", ""),
+        content=content,
         image_url=item.get("image_url", ""),
         category="upcoming_skin" if category == "unreleased" else "skin_leak",
         published_at=_parse_dt(item.get("_fetched_at")),
         is_official=False,
-        is_leak=True,  # fortnite.gg shows datamined items
+        is_leak=True,
     )
 
 
-# Convenience: dispatch by source
 def normalize(item: dict) -> RawItem | None:
-    """Dispatch to appropriate normalizer based on _source field."""
     source = item.get("_source", "")
     if "fortnite-api" in source:
         return normalize_fortnite_api(item)

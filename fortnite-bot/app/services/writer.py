@@ -278,51 +278,78 @@ async def score_with_llm(item: RawItem) -> dict:
 
 
 async def write_post(item: RawItem, template_name: Optional[str] = None) -> str:
-    """Use the LLM to rewrite a news item in Russian using the given template.
+    """Use the LLM to rewrite a news item as a Russian Telegram post.
 
-    Returns the rendered post body. If LLM fails, returns a basic fallback.
+    The new prompt (rewrite_news_ru.txt) does all the structural work
+    itself — picks one of four "voice" styles and writes the post end
+    to end. We don't pass any rigid template anymore; that was what
+    made every post look identical.
+
+    Returns the rendered post body. Falls back to a minimal, clean
+    template only when the LLM is unavailable.
     """
-    if template_name is None:
-        template_name = select_template(item)
-    template = TEMPLATES.get(template_name, TEMPLATE_OFFICIAL_NEWS)
-
     rewrite_prompt = _load_prompt("rewrite_news_ru.txt")
 
-    source_data = json.dumps(item.model_dump(mode="json"), ensure_ascii=False, default=str)
-
-    client = LLMClient()
-
-    system_msg = (
-        "Ты редактор русскоязычного Telegram-канала о Fortnite. "
-        "Пиши коротко, в официальном новостном стиле. "
-        "Никогда не выдавай утечки за официальные подтверждения."
-    )
+    # Trim source_data — pass only what the LLM actually needs to write
+    # the post. We deliberately drop the raw `source` field to prevent
+    # the model leaking the leaker's handle into the post.
+    payload = {
+        "title": item.title,
+        "content": (item.content or "")[:600],
+        "category": item.category,
+        "is_leak": item.is_leak,
+        "is_official": item.is_official,
+    }
+    source_data = json.dumps(payload, ensure_ascii=False, default=str)
 
     user_msg = (
-        f"{rewrite_prompt}\n\n"
-        f"Шаблон поста (заполни плейсхолдеры конкретным содержимым):\n{template}\n\n"
-        f"Подставь:\n"
-        f"  shop_url = {settings.shop_url}\n"
-        f"  disclaimer = {get_leak_disclaimer() if item.is_leak else ''}\n\n"
-        f"Исходные данные:\n{source_data}\n\n"
-        f"Верни ТОЛЬКО готовый пост на русском языке, без комментариев и без markdown-обёрток."
+        rewrite_prompt
+        .replace("{shop_url}", settings.shop_url)
+        .replace("{source_data}", source_data)
     )
 
+    client = LLMClient()
     response = await client.chat(
         messages=[
-            {"role": "system", "content": system_msg},
+            {
+                "role": "system",
+                "content": (
+                    "Ты главный редактор русскоязычного Telegram-канала о "
+                    "Fortnite и сам выступаешь первоисточником. "
+                    "Никогда не упоминай датамайнеров или их ники. "
+                    "Каждый пост звучит по-своему — варьируй стиль, "
+                    "длину и тон."
+                ),
+            },
             {"role": "user", "content": user_msg},
         ],
-        temperature=0.7,
-        max_tokens=900,
+        temperature=0.85,  # больше разнообразия в формулировках
+        max_tokens=600,
     )
 
     if response and len(response.strip()) > 30:
         return response.strip()
 
-    # Fallback: render the template directly with simple substitution
+    # Fallback — минимальный, чистый, без шаблона
     logger.warning("LLM returned empty/short response for %s, using fallback", item.title)
-    return _render_fallback(item, template)
+    return _render_fallback_simple(item)
+
+
+def _render_fallback_simple(item: RawItem) -> str:
+    """Minimal manual post when LLM is unavailable. No source attribution."""
+    headline = (item.title or "Новость Fortnite")[:120]
+    body = (item.content or "").strip()[:240]
+    disclaimer = (
+        "\n\nEpic Games пока не комментирует эту информацию официально."
+        if item.is_leak else ""
+    )
+    return (
+        f"⚡️ <b>{headline}</b>\n\n"
+        f"{body}"
+        f"{disclaimer}\n\n"
+        f"💳 V-Bucks: {settings.shop_url}\n"
+        f"#Fortnite"
+    )
 
 
 def _render_fallback(item: RawItem, template: str) -> str:
