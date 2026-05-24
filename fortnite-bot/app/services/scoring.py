@@ -110,14 +110,39 @@ def _score_relevance(item: RawItem) -> int:
 
 
 def _score_freshness(item: RawItem) -> int:
-    """0-20: how fresh the news is."""
+    """0-20: how fresh the news is.
+
+    Leaks/upcoming items hold value much longer than a news flash —
+    a leak about a future skin is still relevant a week later, since
+    it still hasn't released. We use a gentler decay for those.
+    """
     if not item.published_at:
-        return 10
+        return 12
     now = datetime.now(timezone.utc)
     pub = item.published_at
     if pub.tzinfo is None:
         pub = pub.replace(tzinfo=timezone.utc)
     age_hours = (now - pub).total_seconds() / 3600
+
+    is_leak_like = item.is_leak or item.category in (
+        "skin_leak", "upcoming_skin", "leak_discussion", "next_season",
+    )
+
+    if is_leak_like:
+        # Slow decay — leak content stays relevant for ~2 weeks
+        if age_hours < 6:
+            return 20
+        if age_hours < 24:
+            return 18
+        if age_hours < 72:
+            return 15
+        if age_hours < 168:   # 1 week
+            return 12
+        if age_hours < 336:   # 2 weeks
+            return 8
+        return 4
+
+    # News / shop / official: traditional decay
     if age_hours < 1:
         return 20
     if age_hours < 6:
@@ -168,10 +193,23 @@ def _score_audience_interest(item: RawItem) -> int:
     for kw in high_interest_topics:
         if kw in text:
             score += 3
-    # Trusted leakers carry inherent interest
+    # Trusted leakers carry inherent interest. We check both `source`
+    # (which is sometimes a URL) and the URL itself, since after the
+    # round-trip via raw_items the source field gets overwritten with
+    # the post URL.
     src = (item.source or "").lower()
-    if any(name in src for name in ("hypex", "shiinabr", "firemonkey")):
+    url = (item.url or "").lower()
+    haystack = src + " " + url
+    if any(name in haystack for name in (
+        "hypex", "shiinabr", "firemonkey", "ifiremonkey",
+        "blortzen", "drcacahuette", "wensoing", "fnbrunreleased",
+        "fortnitestatus", "fnbrnotifier",
+    )):
         score += 6
+    # x.com / twitter URLs are typically leaker tweets even if we
+    # didn't recognise the handle.
+    if "x.com/" in url or "twitter.com/" in url or "/r/fortnitelea" in url:
+        score += 3
     # Leak/upcoming items deserve a baseline boost — they're inherently
     # the most clickable content for our audience.
     if item.category in ("skin_leak", "upcoming_skin", "leak_discussion"):
