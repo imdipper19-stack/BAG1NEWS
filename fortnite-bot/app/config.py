@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     #   http://user:pass@host:port  or  http://host:port
     telegram_proxy_url: str = ""
 
+    # Optional HTTP proxy used by every outbound HTTP call from the bot
+    # (Fortnite-API, fortnite.com, YouTube RSS, Reddit, nitter, fortnite.gg,
+    # Replicate, wellflow.dev). Set this on RU/Iran VPS where most western
+    # services are blocked at the network level. Same format as
+    # telegram_proxy_url.
+    outbound_proxy_url: str = ""
+
     # LLM
     llm_api_url: str = "https://api.wellflow.dev"
     llm_api_key: str
