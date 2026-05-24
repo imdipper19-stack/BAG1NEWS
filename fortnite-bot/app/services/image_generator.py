@@ -1,95 +1,44 @@
-"""Image generation service using Google Nano Banana models on Replicate.
+"""Image generation service via Closerouter OpenAI-compatible API."""
 
-Why these models:
-- Nano Banana 2 is currently #1 on the text-to-image leaderboard for
-  character consistency and accurate multilingual (Russian) text rendering.
-- It has built-in `image_search: true` that pulls real reference images
-  from Google when generating, so it can render real Fortnite skin
-  styles without us having to ship the icons ourselves.
-- It accepts up to 14 reference images via `image_input`, so when we
-  already have a skin icon URL from Fortnite-API we can pass it directly.
-- Unlike OpenAI gpt-image-2 it does not aggressively block branded
-  prompts ("Fortnite", "Marvel", "Star Wars"), which is exactly what we
-  need for this channel.
-
-Strategy:
-1. Try `google/nano-banana-2` first (fast, ~2.5c per image).
-2. On failure, fall back to `google/nano-banana-pro` (premium quality).
-3. If both fail, return None and the post is skipped.
-"""
+from __future__ import annotations
 
 import asyncio
+import base64
 import logging
-import os
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
-import replicate
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-PRIMARY_MODEL = "google/nano-banana-2"
-FALLBACK_MODEL = "google/nano-banana-pro"
-LAST_RESORT_MODEL = "bytedance/seedream-4"
-
-# Third-party brands that Google's safety layer flags (E005). We keep them in
-# the published Telegram post, but strip them from the image prompt so the
-# banner can still be generated. Fortnite/Epic Games are NOT in this list —
-# the models accept them.
-_BRAND_REPLACEMENTS = {
-    "marvel": "superhero",
-    "dc comics": "superhero",
-    "star wars": "sci-fi space",
-    "disney": "fantasy",
-    "pixar": "animated",
-    "lego": "blocky toy",
-    "anime": "stylized cartoon",
-    "naruto": "ninja",
-    "dragon ball": "martial arts hero",
-    "pokemon": "creature",
-    "ferrari": "race car",
-    "lamborghini": "supercar",
-    "nike": "sport",
-    "adidas": "sport",
-    "spiderman": "web hero",
-    "spider-man": "web hero",
-    "iron man": "armored hero",
-    "batman": "dark knight",
-    "superman": "flying hero",
-    "deadpool": "red costumed hero",
-    "wolverine": "clawed hero",
-    "darth vader": "dark armored figure",
-    "yoda": "wise small alien",
-}
-
-
-def _strip_third_party_brands(text: str) -> str:
-    """Remove third-party IP names from prompts. Fortnite/Epic stay."""
-    if not text:
-        return ""
-    out = text
-    for needle, replacement in _BRAND_REPLACEMENTS.items():
-        for variant in (needle, needle.capitalize(), needle.upper(), needle.title()):
-            out = out.replace(variant, replacement)
-    return out
-
 
 IMAGES_DIR = Path(__file__).parent.parent.parent / "images"
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 
 class ImageGenerator:
-    """Generate Fortnite-themed news banners via Replicate."""
+    """Generate Fortnite-themed Telegram news banners via Closerouter."""
 
-    def __init__(self, api_token: str | None = None):
-        self.api_token = api_token or settings.replicate_api_token
-        os.environ["REPLICATE_API_TOKEN"] = self.api_token
-        self.client = replicate.Client(api_token=self.api_token)
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        image_size: str | None = None,
+    ):
+        self.api_key = api_key or settings.image_api_key or settings.llm_api_key
+        self.base_url = (base_url or settings.image_api_url).rstrip("/")
+        self.model = model or settings.image_model
+        self.image_size = image_size or settings.image_size
         IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+    def _url(self, path: str) -> str:
+        if self.base_url.endswith("/v1"):
+            return f"{self.base_url}/{path.lstrip('/')}"
+        return f"{self.base_url}/v1/{path.lstrip('/')}"
 
     # -------------------- prompt building --------------------
 
@@ -100,11 +49,10 @@ class ImageGenerator:
         except OSError as e:
             logger.warning("Failed to load image_banner.txt: %s; using fallback", e)
             return (
-                "Premium Fortnite news banner in the official Fortnite art "
-                "style — vibrant, colorful, polished 3D render. "
-                "Subject: {topic}. Bold readable Russian headline at the top: "
-                '"{headline}". Cinematic lighting, dynamic composition, '
-                "16:9 landscape."
+                "Create a premium 16:9 Telegram news image in a polished "
+                "Fortnite-inspired gaming style. Topic: {topic}. Headline "
+                "context: {headline}. Minimal readable Russian text, clean "
+                "composition, no official logos, no watermark."
             )
 
     def _build_prompt(
@@ -114,16 +62,10 @@ class ImageGenerator:
         style: str = "news",
         has_reference: bool = False,
     ) -> str:
-        # Strip leaker handles (via @ShiinaBR, by HYPEX, etc.) — they would
-        # otherwise show up rendered on the banner.
         from app.services.title_cleaner import clean_title as _clean_attrib
-        topic = _clean_attrib(topic)
-        headline = _clean_attrib(headline)
 
-        # Strip third-party brand names (Marvel, Star Wars, Disney, …) that
-        # trip Google/OpenAI safety filters. "Fortnite" / "Epic Games" stay.
-        clean_topic = _strip_third_party_brands(topic)
-        clean_headline = _strip_third_party_brands(headline)
+        clean_topic = _clean_attrib(topic or "")
+        clean_headline = _clean_attrib(headline or "")
         template = self._load_prompt_template()
         prompt = (
             template
@@ -133,109 +75,172 @@ class ImageGenerator:
         )
         if has_reference:
             prompt += (
-                "\n\nReference image is provided. Use it as the central "
-                "character/subject of the banner. Preserve its exact "
-                "appearance, colors, and design — do not invent a new "
-                "character. Render the rest of the scene around it in "
-                "the official Fortnite art style."
+                "\n\nA reference image URL exists for this news item. If the "
+                "image model can use web context, treat it only as a loose "
+                "visual reference for the central subject. Do not copy logos."
             )
         return prompt
 
-    # -------------------- replicate calls --------------------
+    # -------------------- API calls --------------------
 
-    async def _run_model(
-        self,
-        model: str,
-        prompt: str,
-        input_images: list[str] | None = None,
-        use_image_search: bool = True,
-    ) -> Optional[str]:
-        """Run a Replicate model and return the first output URL.
-
-        Returns None on flagged content / API error / empty output.
-        Each model has slightly different input schema, so we branch.
-        """
-        input_data: dict = {"prompt": prompt}
-
-        if model.startswith("google/nano-banana"):
-            # Nano Banana 2 / Pro
-            input_data["aspect_ratio"] = "16:9"
-            input_data["resolution"] = "1K"
-            input_data["output_format"] = "jpg"
-            if input_images:
-                input_data["image_input"] = input_images
-            elif use_image_search:
-                input_data["image_search"] = True
-        elif model.startswith("bytedance/seedream"):
-            # Seedream-4
-            input_data["size"] = "2K"
-            input_data["aspect_ratio"] = "16:9"
-            input_data["enhance_prompt"] = True
-            if input_images:
-                input_data["image_input"] = input_images
-        else:
-            input_data["aspect_ratio"] = "16:9"
-
-        def _run() -> Optional[str]:
-            try:
-                output = self.client.run(model, input=input_data)
-            except Exception as e:
-                logger.warning("Replicate model %s failed: %s", model, e)
-                return None
-
-            item = output[0] if isinstance(output, list) and output else output
-            if item is None:
-                return None
-            if hasattr(item, "url"):
-                url_attr = getattr(item, "url")
-                url = url_attr() if callable(url_attr) else url_attr
-                return str(url) if url else None
-            return str(item)
-
-        return await asyncio.to_thread(_run)
-
-    async def _download_image(self, url: str, prefix: str = "banner") -> Optional[str]:
-        """Download remote image, watermark it, save to images/ directory."""
-        if not url:
+    async def _post_generation(self, prompt: str) -> dict[str, Any] | None:
+        """Call the OpenAI-compatible image generation endpoint."""
+        if not self.api_key:
+            logger.error("Image API key is not configured")
             return None
-        # Detect extension from URL or default to jpg
+
+        url = self._url("images/generations")
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload_variants = [
+            {
+                "model": self.model,
+                "prompt": prompt,
+                "size": self.image_size,
+                "quality": "auto",
+                "n": 1,
+            },
+            {
+                "model": self.model,
+                "prompt": prompt,
+                "size": self.image_size,
+                "n": 1,
+            },
+            {
+                "model": self.model,
+                "prompt": prompt,
+                "size": "auto",
+                "n": 1,
+            },
+        ]
+
+        last_error = ""
+        async with httpx.AsyncClient(timeout=180) as client:
+            for attempt, payload in enumerate(payload_variants, start=1):
+                try:
+                    response = await client.post(url, headers=headers, json=payload)
+                    response.raise_for_status()
+                    return response.json()
+                except httpx.HTTPStatusError as e:
+                    status = e.response.status_code
+                    last_error = f"HTTP {status}: {e.response.text[:500]}"
+                    if status in (400, 422) and attempt < len(payload_variants):
+                        logger.warning(
+                            "Image payload variant %s rejected, retrying: %s",
+                            attempt,
+                            last_error,
+                        )
+                        continue
+                    logger.error("Image generation HTTP error: %s", last_error)
+                    return None
+                except httpx.RequestError as e:
+                    last_error = f"network: {e}"
+                    logger.error("Image generation network error: %s", e)
+                    return None
+                except Exception as e:
+                    last_error = str(e)
+                    logger.error("Image generation unexpected error: %s", e)
+                    return None
+
+        logger.error("Image generation failed: %s", last_error)
+        return None
+
+    def _extract_image_payload(self, data: dict[str, Any]) -> tuple[str, str] | None:
+        """Return (kind, value), where kind is url or b64."""
+        items: list[Any] = []
+        if isinstance(data.get("data"), list):
+            items.extend(data["data"])
+        if isinstance(data.get("output"), list):
+            items.extend(data["output"])
+        if data.get("url") or data.get("b64_json"):
+            items.append(data)
+
+        for item in items:
+            if isinstance(item, str):
+                if item.startswith(("http://", "https://")):
+                    return ("url", item)
+                if item.startswith("data:image"):
+                    return ("b64", item.split(",", 1)[-1])
+                return ("b64", item)
+            if not isinstance(item, dict):
+                continue
+            for key in ("url", "image_url", "uri"):
+                value = item.get(key)
+                if isinstance(value, str) and value:
+                    if value.startswith("data:image"):
+                        return ("b64", value.split(",", 1)[-1])
+                    if value.startswith(("http://", "https://")):
+                        return ("url", value)
+            value = item.get("b64_json") or item.get("base64") or item.get("image")
+            if isinstance(value, str) and value:
+                if value.startswith("data:image"):
+                    value = value.split(",", 1)[-1]
+                return ("b64", value)
+        return None
+
+    async def _save_image_payload(
+        self,
+        kind: str,
+        value: str,
+        prefix: str = "news",
+    ) -> Optional[str]:
+        filename = f"{prefix}_{uuid.uuid4().hex[:12]}"
+
+        if kind == "b64":
+            path = IMAGES_DIR / f"{filename}.png"
+            try:
+                path.write_bytes(base64.b64decode(value))
+            except Exception as e:
+                logger.error("Failed to decode generated image: %s", e)
+                return None
+            return await self._watermark(str(path))
+
         ext = "jpg"
         for candidate in (".webp", ".png", ".jpg", ".jpeg"):
-            if candidate in url.lower():
+            if candidate in value.lower():
                 ext = candidate.lstrip(".")
                 break
-        filename = f"{prefix}_{uuid.uuid4().hex[:12]}.{ext}"
-        path = IMAGES_DIR / filename
+        path = IMAGES_DIR / f"{filename}.{ext}"
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                response = await client.get(url)
+            async with httpx.AsyncClient(timeout=90) as client:
+                response = await client.get(value)
                 response.raise_for_status()
+                content_type = response.headers.get("content-type", "")
+                if "png" in content_type:
+                    path = path.with_suffix(".png")
+                elif "webp" in content_type:
+                    path = path.with_suffix(".webp")
+                elif "jpeg" in content_type or "jpg" in content_type:
+                    path = path.with_suffix(".jpg")
                 path.write_bytes(response.content)
         except (httpx.HTTPError, OSError) as e:
-            logger.error("Failed to download image from %s: %s", url, e)
+            logger.error("Failed to download generated image from %s: %s", value, e)
             return None
 
-        # Stamp the channel watermark in the bottom-right. Runs in a
-        # thread because Pillow is sync/CPU-bound.
+        return await self._watermark(str(path))
+
+    async def _watermark(self, path: str) -> str:
         try:
             from app.services.watermark import add_watermark
-            from app.config import settings as _settings
 
-            handle = _settings.telegram_channel_id or ""
-            if handle:
-                wm_path = await asyncio.to_thread(
-                    add_watermark,
-                    str(path),
-                    handle,
-                    out_suffix="_wm",
-                    output_format="JPEG" if ext in ("jpg", "jpeg") else "PNG",
-                )
-                if wm_path:
-                    return wm_path
+            handle = settings.telegram_channel_id or ""
+            if not handle:
+                return path
+            suffix = Path(path).suffix.lower()
+            output_format = "JPEG" if suffix in (".jpg", ".jpeg") else "PNG"
+            wm_path = await asyncio.to_thread(
+                add_watermark,
+                path,
+                handle,
+                out_suffix="_wm",
+                output_format=output_format,
+            )
+            return wm_path or path
         except Exception as e:
             logger.warning("Watermark step failed, returning unwatermarked: %s", e)
-
-        return str(path)
+            return path
 
     # -------------------- public API --------------------
 
@@ -246,64 +251,33 @@ class ImageGenerator:
         style: str = "news",
         reference_image_url: str | None = None,
     ) -> Optional[str]:
-        """Generate a banner. Returns local file path or None.
-
-        If `reference_image_url` is given (e.g. a real skin icon from
-        Fortnite-API), it is passed as `image_input` so the actual
-        character ends up on the banner. Otherwise, `image_search` lets
-        the model find Fortnite reference imagery itself.
-        """
+        """Generate a 16:9 Telegram-ready banner and return a local file path."""
         prompt = self._build_prompt(
             topic=topic,
             headline=headline,
             style=style,
             has_reference=bool(reference_image_url),
         )
-
-        input_images = [reference_image_url] if reference_image_url else None
-
-        # Primary: nano-banana-2 (fast, best Russian text rendering)
-        url = await self._run_model(
-            PRIMARY_MODEL,
-            prompt,
-            input_images=input_images,
-            use_image_search=not bool(input_images),
-        )
-
-        # Fallback 1: nano-banana-pro (premium quality)
-        if not url:
-            logger.info("Primary model failed, falling back to %s", FALLBACK_MODEL)
-            url = await self._run_model(
-                FALLBACK_MODEL,
-                prompt,
-                input_images=input_images,
-                use_image_search=not bool(input_images),
-            )
-
-        # Fallback 2: seedream-4 (less strict safety filter)
-        if not url:
-            logger.info("Both Google models failed, falling back to %s", LAST_RESORT_MODEL)
-            url = await self._run_model(
-                LAST_RESORT_MODEL,
-                prompt,
-                input_images=input_images,
-                use_image_search=False,  # seedream doesn't support image_search
-            )
-
-        if not url:
-            logger.error("All image models failed for: %s", headline[:60])
+        data = await self._post_generation(prompt)
+        if not data:
             return None
 
-        return await self._download_image(url, prefix="news")
+        payload = self._extract_image_payload(data)
+        if not payload:
+            logger.error("Unexpected image response shape: %s", str(data)[:500])
+            return None
+
+        kind, value = payload
+        return await self._save_image_payload(kind, value, prefix="news")
 
     async def generate_shop_banner(
         self,
         items: list[str],
         reference_image_url: str | None = None,
     ) -> Optional[str]:
-        items_str = ", ".join(items[:5]) if items else "новые скины"
+        items_str = ", ".join(items[:5]) if items else "новые предметы магазина"
         return await self.generate_news_banner(
-            topic=f"Fortnite item shop update featuring {items_str}",
+            topic=f"Fortnite item shop update: {items_str}",
             headline="Магазин Fortnite обновился",
             style="shop",
             reference_image_url=reference_image_url,
@@ -315,7 +289,7 @@ class ImageGenerator:
         reference_image_url: str | None = None,
     ) -> Optional[str]:
         return await self.generate_news_banner(
-            topic=f"Fortnite leaked skin: {skin_name}",
+            topic=f"Fortnite leak: {skin_name}",
             headline=f"Утечка: {skin_name}",
             style="leak",
             reference_image_url=reference_image_url,

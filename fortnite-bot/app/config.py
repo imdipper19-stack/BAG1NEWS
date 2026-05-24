@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import AliasChoices, Field
 
 
 class Settings(BaseSettings):
@@ -21,18 +21,47 @@ class Settings(BaseSettings):
 
     # Optional HTTP proxy used by every outbound HTTP call from the bot
     # (Fortnite-API, fortnite.com, YouTube RSS, Reddit, nitter, fortnite.gg,
-    # Replicate, wellflow.dev). Set this on RU/Iran VPS where most western
+    # Closerouter). Set this on RU/Iran VPS where most western
     # services are blocked at the network level. Same format as
     # telegram_proxy_url.
     outbound_proxy_url: str = ""
 
-    # LLM
-    llm_api_url: str = "https://api.wellflow.dev"
-    llm_api_key: str
-    llm_model: str = "gpt-5.5"
+    # AI provider (Closerouter / OpenAI-compatible)
+    llm_api_url: str = Field(
+        "https://api.closerouter.dev",
+        validation_alias=AliasChoices("LLM_API_URL", "CLOSEROUTER_BASE_URL"),
+    )
+    llm_api_key: str = Field(
+        "",
+        validation_alias=AliasChoices("LLM_API_KEY", "CLOSEROUTER_API_KEY"),
+    )
+    llm_model: str = Field(
+        "openai/gpt-5.5",
+        validation_alias=AliasChoices("LLM_MODEL", "CLOSEROUTER_TEXT_MODEL"),
+    )
+    image_api_url: str = Field(
+        "https://api.closerouter.dev",
+        validation_alias=AliasChoices("IMAGE_API_URL", "CLOSEROUTER_BASE_URL"),
+    )
+    image_api_key: str = Field(
+        "",
+        validation_alias=AliasChoices(
+            "IMAGE_API_KEY",
+            "CLOSEROUTER_API_KEY",
+            "LLM_API_KEY",
+        ),
+    )
+    image_model: str = Field(
+        "openai/gpt-image-2",
+        validation_alias=AliasChoices("IMAGE_MODEL", "CLOSEROUTER_IMAGE_MODEL"),
+    )
+    image_size: str = "1536x864"
 
-    # Replicate
-    replicate_api_token: str
+    # Optional Telegram custom emoji IDs. Leave empty to use normal Unicode emoji.
+    custom_emoji_news_id: str = ""
+    custom_emoji_shop_id: str = ""
+    custom_emoji_chat_id: str = ""
+    custom_emoji_alert_id: str = ""
 
     # Database
     database_url: str = "postgresql+asyncpg://fortnite:fortnite123@postgres:5432/fortnite_bot"

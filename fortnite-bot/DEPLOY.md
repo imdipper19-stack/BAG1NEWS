@@ -84,8 +84,7 @@ cat .env | grep -v '^#' | grep -v '^$'
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHANNEL_ID=@FortnitebucksShop`
 - `TELEGRAM_ADMIN_USER_ID=7424891771`
-- `LLM_API_KEY`
-- `REPLICATE_API_TOKEN`
+- `CLOSEROUTER_API_KEY`
 - `REQUIRE_ADMIN_APPROVAL=true` (рекомендуется на старте)
 
 ---

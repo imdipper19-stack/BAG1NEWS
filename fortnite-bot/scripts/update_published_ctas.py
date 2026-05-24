@@ -2,10 +2,9 @@
 
 Iterates over `published_posts`, pulls the fresh body from `posts.body`
 (which still contains the old V-Bucks CTA), rewrites:
-  - "💳 ... V-Bucks ...: <url>" → "🛒 Магазин для игроков: <new_url>"
+  - "💳 ... V-Bucks ...: <url>" → "💎 Магазин для игроков: <new_url>"
   - any leftover `https://bag1v-bucks.shop/`  → `https://bag1-v-bucks.shop/`
-  - inline keyboard button text "💳 Пополнить V-Bucks" → "🛒 Магазин для игроков"
-  - button URL                                → settings.shop_url
+  - removes the old inline keyboard
 
 Run:
   docker compose exec -T worker python -m scripts.update_published_ctas
@@ -17,7 +16,6 @@ import re
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import select
 
 from app.bot.telegram import get_bot, close_bot
@@ -33,7 +31,7 @@ log = logging.getLogger("update_ctas")
 # ---------------------------------------------------------------------------
 
 NEW_URL = settings.shop_url
-NEW_CTA_LINE = f"🛒 Магазин для игроков: {NEW_URL}"
+NEW_CTA_LINE = f"💎 Магазин для игроков: {NEW_URL}"
 
 # Lines we want to replace (each pattern is matched line-by-line).
 LINE_PATTERNS = [
@@ -84,11 +82,6 @@ def rewrite_body(body: str) -> str:
     return "\n".join(out)
 
 
-def build_keyboard() -> InlineKeyboardMarkup:
-    btn = InlineKeyboardButton(text="🛒 Перейти в магазин", url=NEW_URL)
-    return InlineKeyboardMarkup(inline_keyboard=[[btn]])
-
-
 # ---------------------------------------------------------------------------
 # Telegram caption length limit: 1024 chars
 # ---------------------------------------------------------------------------
@@ -116,13 +109,12 @@ def trim_caption(text: str) -> str:
 async def update_one(bot: Bot, channel_id: str, message_id: int, body: str) -> str:
     new_body = rewrite_body(body)
     new_body = trim_caption(new_body)
-    kb = build_keyboard()
     try:
         await bot.edit_message_caption(
             chat_id=channel_id,
             message_id=message_id,
             caption=new_body,
-            reply_markup=kb,
+            reply_markup=None,
         )
         return "ok"
     except TelegramBadRequest as e:
@@ -133,7 +125,7 @@ async def update_one(bot: Bot, channel_id: str, message_id: int, body: str) -> s
                 await bot.edit_message_reply_markup(
                     chat_id=channel_id,
                     message_id=message_id,
-                    reply_markup=kb,
+                    reply_markup=None,
                 )
                 return "kb-only"
             except TelegramBadRequest as e2:

@@ -208,7 +208,7 @@ async def _process_queue_async() -> int:
         logger.info("Daily post limit reached — skipping process_queue")
         return 0
 
-    # Fetch up to 5 candidate items per cycle (rate-limit Replicate spend).
+    # Fetch up to 5 candidate items per cycle (rate-limit image spend).
     # Only "future-facing" categories — leaks, upcoming skins, official news.
     # Shop / cosmetics-database items go through the daily digest instead,
     # not as individual posts.
@@ -488,7 +488,7 @@ async def _wednesday_official_async() -> dict:
         "⚡️ <b>EPIC ЗА НЕДЕЛЮ</b>\n\n"
         "Главные официальные новости Fortnite за последние 7 дней:\n\n"
         f"{items_block}\n\n"
-        f"🛒 Магазин для игроков: {settings.shop_url}\n\n"
+        f"💎 Магазин для игроков: {settings.shop_url}\n\n"
         "#Fortnite #ФортнайтНовости #Epic"
     )
     client = LLMClient()

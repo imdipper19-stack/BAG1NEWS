@@ -7,7 +7,7 @@ Steps (per spec section 8):
   4. Score (rule-based)
   5. Verify (set is_official / is_leak)
   6. Write Russian post via LLM
-  7. Generate image via Replicate
+  7. Generate image via the configured image API
   8. Publish to Telegram (skip if dry_run)
   9. Persist to DB
 """

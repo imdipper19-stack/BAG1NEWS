@@ -1,7 +1,7 @@
 """Telegram publishing service.
 
-Sends photo + caption + V-Bucks CTA button to the configured channel,
-then logs to the published_posts table.
+Sends photo + caption to the configured channel, then logs to the
+published_posts table.
 """
 
 import logging
@@ -10,10 +10,7 @@ from typing import Optional
 
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import (
-    BufferedInputFile,
     FSInputFile,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
     URLInputFile,
 )
 
@@ -23,15 +20,6 @@ from app.db.models import PublishedPost
 from app.db.session import get_session
 
 logger = logging.getLogger(__name__)
-
-
-def _build_cta_keyboard() -> InlineKeyboardMarkup:
-    """Build the inline keyboard with the V-Bucks CTA button."""
-    button = InlineKeyboardButton(
-        text="🛒 Перейти в магазин",
-        url=settings.shop_url,
-    )
-    return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
 
 def _truncate_caption(text: str, limit: int = 1024) -> str:
@@ -64,13 +52,12 @@ class TelegramPublisher:
         image_path_or_url: str,
         post_id: Optional[int] = None,
     ) -> Optional[str]:
-        """Send a photo + caption with the V-Bucks button.
+        """Send a photo + caption.
 
         Returns the Telegram message_id (as string) on success, None on failure.
         Logs the publish event to the published_posts table when post_id is given.
         """
         caption = _truncate_caption(body)
-        keyboard = _build_cta_keyboard()
 
         try:
             photo = _resolve_photo(image_path_or_url)
@@ -83,7 +70,6 @@ class TelegramPublisher:
                 chat_id=self.channel_id,
                 photo=photo,
                 caption=caption,
-                reply_markup=keyboard,
             )
         except TelegramAPIError as e:
             logger.error("Telegram API error publishing to %s: %s", self.channel_id, e)
@@ -101,13 +87,11 @@ class TelegramPublisher:
         return message_id
 
     async def publish_text(self, text: str, post_id: Optional[int] = None) -> Optional[str]:
-        """Send a plain text message with the V-Bucks button (fallback when no image)."""
-        keyboard = _build_cta_keyboard()
+        """Send a plain text message (fallback when no image)."""
         try:
             message = await self.bot.send_message(
                 chat_id=self.channel_id,
                 text=text[:4096],
-                reply_markup=keyboard,
                 disable_web_page_preview=False,
             )
         except TelegramAPIError as e:

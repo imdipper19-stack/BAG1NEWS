@@ -61,14 +61,14 @@ async def main() -> None:
     decision = should_publish(scores["total"])
     print(f"score={scores['total']} decision={decision} breakdown={scores}")
 
-    print("\n=== Step 3: LLM rewrite (this calls wellflow.dev) ===")
+    print("\n=== Step 3: LLM rewrite (this calls the configured OpenAI-compatible API) ===")
     body = await write_post(verified)
     print(f"Body length: {len(body)} chars")
     print("---")
     print(body)
     print("---")
 
-    print("\n=== Step 4: Image generation (Nano Banana 2 with web image search) ===")
+    print("\n=== Step 4: Image generation (configured image API) ===")
     img_gen = ImageGenerator()
     image_path = await img_gen.generate_news_banner(
         topic=f"Fortnite — {verified.title}",

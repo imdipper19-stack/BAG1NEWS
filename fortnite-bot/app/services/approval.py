@@ -35,7 +35,6 @@ from app.db.models import Post as PostORM, PublishedPost as PublishedPostORM
 from app.db.session import get_session
 from app.services.publisher import (
     TelegramPublisher,
-    _build_cta_keyboard,  # type: ignore  (re-used for the final post)
     _truncate_caption,    # type: ignore
 )
 

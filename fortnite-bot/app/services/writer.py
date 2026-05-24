@@ -1,6 +1,6 @@
 """LLM Russian News Writer.
 
-Uses wellflow.dev API (OpenAI-compatible) with gpt-5.5 model to:
+Uses an OpenAI-compatible API with a Closerouter model to:
 - Score news items (LLM-based scoring complementing the rule-based scorer)
 - Rewrite news in Russian official news style with appropriate templates
 """
@@ -17,6 +17,27 @@ from app.services.verifier import get_leak_disclaimer, get_official_label
 
 logger = logging.getLogger(__name__)
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+
+def _tg_emoji(emoji: str, emoji_id: str) -> str:
+    """Render a Telegram custom emoji when an emoji_id is configured."""
+    return f'<tg-emoji emoji-id="{emoji_id}">{emoji}</tg-emoji>' if emoji_id else emoji
+
+
+def apply_custom_emojis(text: str) -> str:
+    """Swap selected Unicode emoji for Telegram custom emoji tags."""
+    replacements = {
+        "🎮": settings.custom_emoji_news_id,
+        "💎": settings.custom_emoji_shop_id,
+        "🛒": settings.custom_emoji_shop_id,
+        "🔎": settings.custom_emoji_chat_id,
+        "⚡": settings.custom_emoji_alert_id,
+        "🚨": settings.custom_emoji_alert_id,
+    }
+    for emoji, emoji_id in replacements.items():
+        if emoji_id:
+            text = text.replace(emoji, _tg_emoji(emoji, emoji_id))
+    return text
 
 # ----- Templates (from spec section 6) -----
 # Each template ends with HASHTAGS that we append based on category for
@@ -114,7 +135,7 @@ def select_template(item: RawItem) -> str:
 
 
 class LLMClient:
-    """OpenAI-compatible client for wellflow.dev."""
+    """OpenAI-compatible chat client."""
 
     def __init__(
         self,
@@ -125,6 +146,11 @@ class LLMClient:
         self.base_url = (base_url or settings.llm_api_url).rstrip("/")
         self.api_key = api_key or settings.llm_api_key
         self.model = model or settings.llm_model
+
+    def _url(self, path: str) -> str:
+        if self.base_url.endswith("/v1"):
+            return f"{self.base_url}/{path.lstrip('/')}"
+        return f"{self.base_url}/v1/{path.lstrip('/')}"
 
     async def chat(
         self,
@@ -141,7 +167,11 @@ class LLMClient:
         network errors). Permanent failures (4xx other than 429) return ""
         immediately to avoid burning quota.
         """
-        url = f"{self.base_url}/v1/chat/completions"
+        if not self.api_key:
+            logger.error("LLM API key is not configured")
+            return ""
+
+        url = self._url("chat/completions")
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -314,11 +344,10 @@ async def write_post(item: RawItem, template_name: Optional[str] = None) -> str:
             {
                 "role": "system",
                 "content": (
-                    "Ты главный редактор русскоязычного Telegram-канала о "
-                    "Fortnite и сам выступаешь первоисточником. "
-                    "Никогда не упоминай датамайнеров или их ники. "
-                    "Каждый пост звучит по-своему — варьируй стиль, "
-                    "длину и тон."
+                    "Ты главный редактор стильного русскоязычного Telegram-канала "
+                    "про Fortnite. Пиши коротко, уверенно и читабельно. "
+                    "Не упоминай датамайнеров, Twitter/X-ники и источники утечек. "
+                    "Возвращай только готовый HTML-caption для Telegram."
                 ),
             },
             {"role": "user", "content": user_msg},
@@ -328,11 +357,11 @@ async def write_post(item: RawItem, template_name: Optional[str] = None) -> str:
     )
 
     if response and len(response.strip()) > 30:
-        return response.strip()
+        return apply_custom_emojis(response.strip())
 
     # Fallback — минимальный, чистый, без шаблона
     logger.warning("LLM returned empty/short response for %s, using fallback", item.title)
-    return _render_fallback_simple(item)
+    return apply_custom_emojis(_render_fallback_simple(item))
 
 
 def _render_fallback_simple(item: RawItem) -> str:
@@ -347,7 +376,7 @@ def _render_fallback_simple(item: RawItem) -> str:
         f"⚡️ <b>{headline}</b>\n\n"
         f"{body}"
         f"{disclaimer}\n\n"
-        f"🛒 Магазин для игроков: {settings.shop_url}\n"
+        f"💎 Магазин для игроков: {settings.shop_url}\n"
         f"#Fortnite"
     )
 

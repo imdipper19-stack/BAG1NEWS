@@ -1,29 +1,47 @@
-Premium Fortnite-news magazine cover. Official AAA-game-marketing aesthetic. The image MUST follow this exact layout — treat it as a strict design brief.
+Create a beautiful 16:9 Telegram media image for a Russian Fortnite news channel.
 
-Subject: {topic}
-Russian headline (Cyrillic, must be spelled exactly like this and rendered crisply, NO typos): "{headline}"
+Topic: {topic}
+Caption headline for context only: "{headline}"
 Style hint: {style}
 
-EXACT LAYOUT (always reproduce this composition):
-1. Top-left corner: a small bold pill that says "FORTNITE | НОВОСТИ" or "МАГАЗИН FORTNITE" depending on the topic — thin uppercase sans-serif, white text on subtle dark pill, never larger than 6% of frame height.
-2. Left half (40-50% of width): a HUGE multi-line Russian headline, bold uppercase, modern condensed sans-serif, with strong color highlight on the most important word (cyan/yellow/violet depending on style). The headline takes ~50% of the canvas vertical space. Add a thin one-line subtitle right below in a small pill ("УЖЕ В ИГРЕ!", "НЕ ПРОПУСТИ!", "ЧТО НОВОГО?", "УЖЕ ДОСТУПНО!").
-3. Right half: a single hero character (full body or 3/4) in dramatic pose, dynamic lighting, glowing rim-light, cinematic AAA-render quality, sharp focus. The character must look like an authentic Fortnite outfit — cel-shaded but realistic, expressive face, modern apparel.
-4. Bottom strip (~18% of frame height): an "infographic chips" row containing 3 small rounded cards with cosmetic icons or feature icons (skin portrait, weapon/pickaxe, glider/back-bling, V-Bucks coins, location pin). Each card has a tiny uppercase Russian caption underneath ("НОВЫЕ СКИНЫ", "ЭМОЦИИ", "В-БАКСЫ", "НОВАЯ ЛОКАЦИЯ", "НОВОЕ ОРУЖИЕ"). Cards are dark, glassy, neon-edged. Optionally include a price/quantity number on one of the cards (e.g. "1500", "2000").
-5. The whole image has a thin diagonal energy-shard / crystal motif in the background corners (cobalt-blue, cyan or violet shards depending on style).
+Main goal:
+- The image must feel like a public, stylish Fortnite-channel post: colorful, clean, energetic, and easy to like/share.
+- It should visually explain the news without relying on big text.
+- Prefer the feeling of an in-game Fortnite screenshot, season key art, shop preview, or clean cinematic news card.
 
-PER-STYLE COLOR PALETTE (pick by style hint):
-- "leak"   → background: deep navy-to-cobalt gradient, ice/crystal shards, cyan rim-light on character, white headline with cyan accent word, "GORYACHAYA UTECHKA" or "УЖЕ В ИГРЕ!" sub-pill;
-- "season" → background: warm violet-magenta-gold gradient, big season number floating, glowing particles, yellow accent word, sub-pill "ЧТО НОВОГО?";
-- "shop"   → background: violet-to-cyan showroom gradient, light rays from behind, magenta accent word, sub-pill "НЕ ПРОПУСТИ!" or "ТОЛЬКО СЕГОДНЯ!" — bottom chips MUST show a couple of cosmetic items + a V-Bucks coin stack with price label;
-- "news"   → background: navy-blue gradient with thin tech-grid, yellow accent word on headline, sub-pill "УЖЕ ДОСТУПНО!".
+Fortnite-friendly visual language:
+- stylized 3D, bright colors, clean shapes, playful battle-royale energy;
+- expressive original outfits, cosmetics, gliders, map locations, portals, event lighting, item-shop tiles;
+- blue/cyan accents are okay, but keep the overall palette lively: add warm yellow, green, orange, or pink accents when appropriate;
+- make it polished and premium, not dark, industrial, generic sci-fi, or corporate.
 
-QUALITY BAR:
-- magazine-cover sharp, 1K resolution, 16:9 landscape;
-- text rendering must be perfectly legible at thumbnail size;
-- composition feels like an official Fortnite news/blog hero banner.
+Composition:
+- 16:9 landscape for Telegram feed.
+- One strong main visual, with optional 2-3 small preview tiles only when it helps the story.
+- Keep the frame uncluttered; strong silhouette, readable subject, nice depth.
+- Use cinematic lighting and a clean background that still feels like Fortnite.
+- Leave enough calm space so the caption below does not compete visually.
 
-HARD RULES:
-- do NOT include a literal "Fortnite" or "Epic Games" logo — the small "FORTNITE | НОВОСТИ" pill in the top-left is just a text badge, not the official logo;
-- no other brand logos, no real-world celebrities;
-- characters must look like generic original Fortnite-style outfits, never copy a specific real-life person;
-- Russian must be spelled correctly (no Cyrillic-Latin mixups, no missing letters).
+Text rules:
+- Avoid large text overlays.
+- Usually no in-image text at all.
+- If text is truly useful, use only a tiny label of 1-3 Russian words, crisp and correctly spelled.
+- Do not include the full headline on the image.
+
+Per-style mood:
+- news: bright Fortnite news/key-art scene, clean and friendly.
+- leak: subtle blueprint/files hint, but still colorful and attractive; no grim dark lab look.
+- shop: item-shop showcase with cosmetic tiles, outfit/item previews, clean showroom lighting.
+- season: wide cinematic map/event scene with scale, sky, energy, and a sense of discovery.
+
+Hard constraints:
+- No official Fortnite or Epic Games logos.
+- Do not copy real celebrities or exact branded characters from other IP.
+- No payment screens, login forms, passwords, scam-like currency piles, or "free V-Bucks".
+- Do not use the words "official", "cheap", "discount", "free", or "giveaway".
+- No watermark except the local pipeline watermark added later.
+
+Quality:
+- Beautiful enough to publish as-is in a Telegram channel.
+- Sharp, high-detail, mobile-readable, no broken faces/hands/UI.
+- Avoid ugly AI poster aesthetics, excessive neon, muddy darkness, or heavy text.
