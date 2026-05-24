@@ -289,12 +289,17 @@ async def _process_queue_async() -> int:
         if not body:
             continue
 
+        # Pull the Russian headline from the just-generated body so the
+        # banner text is in Russian even when the source title is English.
+        from app.services.title_cleaner import extract_headline_for_banner
+        ru_headline = extract_headline_for_banner(body, fallback=verified.title)
+
         # Generate image — always render a Fortnite-style banner, and pass
         # the source image (e.g. real skin icon from Fortnite-API) as the
         # reference so the actual character appears on the banner.
         image_to_send = await image_gen.generate_news_banner(
-            topic=f"Fortnite — {verified.title}",
-            headline=verified.title,
+            topic=f"Fortnite — {ru_headline}",
+            headline=ru_headline,
             reference_image_url=row.image_url or None,
         )
         if not image_to_send:

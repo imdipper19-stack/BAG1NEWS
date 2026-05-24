@@ -144,12 +144,17 @@ async def run_pipeline(source: str, *, dry_run: bool = False, max_publish: int =
         # 6. Write
         body = await write_post(verified)
 
+        # Pull a Russian headline from the just-written post (LLM always
+        # starts the body with a headline line in Russian).
+        from app.services.title_cleaner import extract_headline_for_banner
+        ru_headline = extract_headline_for_banner(body, fallback=verified.title)
+
         # 7. Image — always generate a Fortnite-style banner; pass the source
         # image (e.g. real skin icon from Fortnite-API) as a reference so the
         # actual character appears on the banner.
         image = await image_gen.generate_news_banner(
-            topic=f"Fortnite — {verified.title}",
-            headline=verified.title,
+            topic=f"Fortnite — {ru_headline}",
+            headline=ru_headline,
             reference_image_url=verified.image_url or None,
         )
 
