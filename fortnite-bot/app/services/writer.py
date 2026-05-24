@@ -31,7 +31,7 @@ Epic Games опубликовала свежую информацию о Fortnit
 
 Обновление связано с {topic} и станет доступно {timing}.
 
-💳 Пополнить V-Bucks можно на нашем сайте:
+🛒 Магазин для игроков:
 {shop_url}
 
 #Fortnite #ФортнайтНовости"""
@@ -45,7 +45,7 @@ TEMPLATE_SKIN_LEAK = """🔥 <b>ГОРЯЧАЯ УТЕЧКА</b> | {headline}
 
 {disclaimer}
 
-💳 Подготовиться к новым скинам можно здесь:
+🛒 Магазин для игроков:
 {shop_url}
 
 #FortniteLeaks #ФортнайтУтечки #Скины"""
@@ -57,7 +57,7 @@ TEMPLATE_ITEM_SHOP = """🛒 <b>{headline}</b>
 Главное:
 {key_points}
 
-Если планировали пополнить баланс перед покупкой скинов, V-Bucks доступны на нашем сайте:
+🛒 Магазин для игроков:
 {shop_url}
 
 #FortniteShop #МагазинФортнайт #Скины #VBucks"""
@@ -71,7 +71,7 @@ TEMPLATE_NEXT_SEASON = """🚨 <b>СРОЧНО</b> | {headline}
 
 {disclaimer}
 
-💳 К началу сезона можно заранее подготовить V-Bucks:
+🛒 Магазин для игроков:
 {shop_url}
 
 #FortniteSeason #ФортнайтСезон #БоевойПропуск"""
@@ -85,7 +85,7 @@ TEMPLATE_FREE_REWARDS = """🎁 <b>БЕСПЛАТНО</b> | {headline}
 
 Не откладывайте: такие награды часто доступны ограниченное время.
 
-💳 А для покупки новых скинов можно использовать наш магазин V-Bucks:
+🛒 Магазин для игроков:
 {shop_url}
 
 #FortniteFree #БесплатныеНаграды #Fortnite"""
@@ -347,7 +347,7 @@ def _render_fallback_simple(item: RawItem) -> str:
         f"⚡️ <b>{headline}</b>\n\n"
         f"{body}"
         f"{disclaimer}\n\n"
-        f"💳 V-Bucks: {settings.shop_url}\n"
+        f"🛒 Магазин для игроков: {settings.shop_url}\n"
         f"#Fortnite"
     )
 

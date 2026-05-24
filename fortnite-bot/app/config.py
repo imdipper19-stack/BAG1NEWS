@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     # Shop
-    shop_url: str = "https://bag1v-bucks.shop/"
+    shop_url: str = "https://bag1-v-bucks.shop/"
 
     # Reddit
     reddit_client_id: str = ""

@@ -488,7 +488,7 @@ async def _wednesday_official_async() -> dict:
         "⚡️ <b>EPIC ЗА НЕДЕЛЮ</b>\n\n"
         "Главные официальные новости Fortnite за последние 7 дней:\n\n"
         f"{items_block}\n\n"
-        f"💳 Пополнить V-Bucks: {settings.shop_url}\n\n"
+        f"🛒 Магазин для игроков: {settings.shop_url}\n\n"
         "#Fortnite #ФортнайтНовости #Epic"
     )
     client = LLMClient()
