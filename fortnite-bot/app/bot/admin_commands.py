@@ -7,6 +7,9 @@ Commands:
   /resume   — clear emergency stop
   /pending  — list all posts awaiting approval
   /myid     — print your Telegram user ID (so you can put it in .env)
+  /limit N  — set the daily post cap (1..100)
+  /score N  — set the minimum publish score threshold (0..100)
+  /reset    — drop runtime overrides; bot reverts to .env defaults
 
 Inline callbacks:
   approve:<post_id> / reject:<post_id> — buttons attached to approval DMs.
@@ -64,7 +67,15 @@ async def cmd_start(message: Message) -> None:
         f"🎮 Fortnite News Bot готов к работе.\n\n"
         f"Канал публикации: {settings.telegram_channel_id}\n"
         f"Твой Telegram ID: <code>{user_id}</code>\n\n"
-        "Команды: /status /pending /stop /resume /myid"
+        "<b>Команды:</b>\n"
+        "/status — текущий статус и параметры\n"
+        "/pending — посты на модерации\n"
+        "/limit N — лимит постов в день (1..100)\n"
+        "/score N — минимальный score для публикации (0..100)\n"
+        "/reset — сбросить настройки к значениям из .env\n"
+        "/stop — экстренная остановка\n"
+        "/resume — снять стоп\n"
+        "/myid — твой Telegram ID"
     )
 
 
@@ -95,15 +106,25 @@ async def cmd_status(message: Message) -> None:
         )
         pending = len(list(result.scalars()))
 
+    from app.services.runtime_settings import (
+        get_max_posts_per_day,
+        get_min_score_to_publish,
+    )
+    max_posts = await get_max_posts_per_day()
+    min_score = await get_min_score_to_publish()
+
     text = (
         "📊 <b>Статус бота</b>\n\n"
-        f"Постов сегодня: {count} / {settings.max_posts_per_day}\n"
+        f"Постов сегодня: {count} / {max_posts}\n"
         f"На модерации: {pending}\n"
         f"Emergency-stop: {'🔴 ВКЛ' if emergency else '🟢 выкл'}\n"
         f"Канал: {settings.telegram_channel_id}\n"
         f"LLM модель: {settings.llm_model}\n"
         f"Approval mode: "
-        f"{'🔴 включён' if settings.require_admin_approval else '🟢 авто-публикация'}"
+        f"{'🔴 включён' if settings.require_admin_approval else '🟢 авто-публикация'}\n\n"
+        f"⚙️ <b>Параметры публикации</b>\n"
+        f"Лимит постов: {max_posts} (изменить: /limit N)\n"
+        f"Мин. score: {min_score} (изменить: /score N)"
     )
     await message.answer(text)
 
@@ -151,6 +172,91 @@ async def cmd_pending(message: Message) -> None:
         title = (p.title or "(без заголовка)")[:60]
         lines.append(f"• #{p.id} · score {p.score} · {title}")
     await message.answer("\n".join(lines))
+
+
+# ---------------------------------------------------------------------------
+# Runtime config commands
+# ---------------------------------------------------------------------------
+
+
+def _parse_int_arg(text: str) -> int | None:
+    """Extract the first integer argument from `/cmd 42` or `/cmd@bot 42`."""
+    parts = (text or "").split(maxsplit=1)
+    if len(parts) < 2:
+        return None
+    try:
+        return int(parts[1].strip())
+    except ValueError:
+        return None
+
+
+async def cmd_limit(message: Message) -> None:
+    if not await _is_admin(message):
+        return
+    from app.services.runtime_settings import (
+        get_max_posts_per_day,
+        set_max_posts_per_day,
+    )
+    value = _parse_int_arg(message.text or "")
+    if value is None:
+        current = await get_max_posts_per_day()
+        await message.answer(
+            f"Текущий лимит постов в день: <b>{current}</b>\n\n"
+            "Поменять: <code>/limit N</code> (например <code>/limit 5</code>)\n"
+            "Допустимый диапазон: 1..100"
+        )
+        return
+    if value < 1 or value > 100:
+        await message.answer("⚠️ Значение должно быть от 1 до 100.")
+        return
+    new_value = await set_max_posts_per_day(value)
+    await message.answer(
+        f"✅ Лимит постов в день изменён: <b>{new_value}</b>\n"
+        "Изменения применяются сразу, перезапуск не нужен."
+    )
+
+
+async def cmd_score(message: Message) -> None:
+    if not await _is_admin(message):
+        return
+    from app.services.runtime_settings import (
+        get_min_score_to_publish,
+        set_min_score_to_publish,
+    )
+    value = _parse_int_arg(message.text or "")
+    if value is None:
+        current = await get_min_score_to_publish()
+        await message.answer(
+            f"Текущий минимальный score: <b>{current}</b>\n\n"
+            "Поменять: <code>/score N</code> (например <code>/score 80</code>)\n"
+            "Допустимый диапазон: 0..100\n\n"
+            "Шкала:\n"
+            "• 50 — почти всё\n"
+            "• 70 — сбалансировано (по умолчанию)\n"
+            "• 80 — только серьёзный контент\n"
+            "• 85 — только сенсации"
+        )
+        return
+    if value < 0 or value > 100:
+        await message.answer("⚠️ Значение должно быть от 0 до 100.")
+        return
+    new_value = await set_min_score_to_publish(value)
+    await message.answer(
+        f"✅ Минимальный score изменён: <b>{new_value}</b>\n"
+        "Изменения применяются сразу."
+    )
+
+
+async def cmd_reset(message: Message) -> None:
+    if not await _is_admin(message):
+        return
+    from app.services.runtime_settings import reset_to_env
+    await reset_to_env()
+    await message.answer(
+        "♻️ Параметры сброшены к значениям из <code>.env</code>:\n"
+        f"• Лимит постов: {settings.max_posts_per_day}\n"
+        f"• Мин. score: {settings.min_score_to_publish}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +328,9 @@ def register_admin_handlers(dp: Dispatcher) -> None:
     dp.message.register(cmd_stop, Command("stop"))
     dp.message.register(cmd_resume, Command("resume"))
     dp.message.register(cmd_pending, Command("pending"))
+    dp.message.register(cmd_limit, Command("limit"))
+    dp.message.register(cmd_score, Command("score"))
+    dp.message.register(cmd_reset, Command("reset"))
 
     # Approval callbacks
     dp.callback_query.register(

@@ -120,7 +120,9 @@ async def _can_publish_today() -> bool:
     try:
         count_raw = await r.get(_today_key())
         count = int(count_raw) if count_raw else 0
-        return count < settings.max_posts_per_day
+        from app.services.runtime_settings import get_max_posts_per_day
+        max_posts = await get_max_posts_per_day()
+        return count < max_posts
     finally:
         await r.aclose()
 
@@ -251,7 +253,9 @@ async def _process_queue_async() -> int:
         if decision not in ("immediate", "conditional"):
             continue
 
-        if score_dict["total"] < settings.min_score_to_publish:
+        from app.services.runtime_settings import get_min_score_to_publish
+        min_score = await get_min_score_to_publish()
+        if score_dict["total"] < min_score:
             continue
 
         if not await _can_publish_today():
