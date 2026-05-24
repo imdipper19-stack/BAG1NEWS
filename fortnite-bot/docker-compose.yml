@@ -47,6 +47,8 @@ services:
     build: .
     env_file: .env
     command: celery -A app.celery_app worker --loglevel=info
+    volumes:
+      - ./images:/app/images
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,6 +63,8 @@ services:
     build: .
     env_file: .env
     command: celery -A app.celery_app beat --loglevel=info
+    volumes:
+      - ./images:/app/images
     depends_on:
       redis:
         condition: service_healthy

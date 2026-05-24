@@ -280,7 +280,16 @@ async def cb_approve(query: CallbackQuery) -> None:
     from app.services.approval import approve_post
 
     await query.answer("Публикую…")
-    message_id = await approve_post(post_id)
+    try:
+        message_id = await approve_post(post_id)
+    except Exception as e:
+        logger.exception("approve_post failed for post %s", post_id)
+        await query.message.edit_caption(
+            (query.message.caption or "")
+            + f"\n\n⚠️ <b>Ошибка публикации</b>\n<code>{type(e).__name__}: {str(e)[:200]}</code>"
+        )
+        return
+
     if message_id:
         await query.message.edit_caption(
             (query.message.caption or "")
@@ -288,7 +297,9 @@ async def cb_approve(query: CallbackQuery) -> None:
         )
     else:
         await query.message.edit_caption(
-            (query.message.caption or "") + "\n\n⚠️ Не удалось опубликовать"
+            (query.message.caption or "")
+            + "\n\n⚠️ Не удалось опубликовать. Проверь логи: "
+              "<code>docker compose logs app --tail=50</code>"
         )
 
 
